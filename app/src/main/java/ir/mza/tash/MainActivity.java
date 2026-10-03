@@ -23,6 +23,10 @@ import android.webkit.WebViewClient;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
+import android.webkit.JavascriptInterface;
+
+import com.google.firebase.messaging.FirebaseMessaging;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -62,6 +66,7 @@ public class MainActivity extends AppCompatActivity {
         settings.setJavaScriptCanOpenWindowsAutomatically(true);
         settings.setSupportMultipleWindows(true);
 
+        webView.addJavascriptInterface(new TashBridge(), "TashAndroid");
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
@@ -125,6 +130,9 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        askNotificationPermission();
+        TashMessageService.ensureChannel(this);
+        refreshPushToken();
         if (hasMicPermission()) webView.loadUrl(SITE_URL);
         else ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, REQ_MIC_ON_START);
     }
@@ -205,6 +213,40 @@ public class MainActivity extends AppCompatActivity {
     public void onBackPressed() {
         if (webView != null && webView.canGoBack()) webView.goBack();
         else super.onBackPressed();
+    }
+
+    private void askNotificationPermission() {
+        if (android.os.Build.VERSION.SDK_INT >= 33 && androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            androidx.core.app.ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 2003);
+        }
+    }
+
+    private void refreshPushToken() {
+        try {
+            FirebaseMessaging.getInstance().getToken().addOnSuccessListener(token -> {
+                getSharedPreferences("tash", MODE_PRIVATE).edit().putString("push_token", token).apply();
+                if (webView != null) {
+                    String js = "window.TashPushToken='" + token.replace("\\", "").replace("'", "") + "';window.dispatchEvent(new CustomEvent('tash-push-token',{detail:{token:window.TashPushToken}}));";
+                    webView.post(() -> webView.evaluateJavascript(js, null));
+                }
+            });
+        } catch (Exception ignored) {}
+    }
+
+    @Override
+    protected void onNewIntent(android.content.Intent intent) {
+        super.onNewIntent(intent);
+        String url = intent == null ? null : intent.getStringExtra("open_url");
+        if (url != null && webView != null && (url.startsWith("https://tashweb.ir") || url.startsWith("https://www.tashweb.ir"))) {
+            webView.loadUrl(url);
+        }
+    }
+
+    private class TashBridge {
+        @JavascriptInterface
+        public String getPushToken() {
+            return getSharedPreferences("tash", MODE_PRIVATE).getString("push_token", "");
+        }
     }
 
     @Override
