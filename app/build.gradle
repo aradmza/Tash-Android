@@ -10,8 +10,8 @@ android {
         applicationId "ir.mza.tash"
         minSdk 21
         targetSdk 34
-        versionCode 5
-        versionName "1.1.1"
+        versionCode 6
+        versionName "1.2.0"
     }
 
     signingConfigs {
@@ -50,10 +50,4 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'androidx.core:core:1.13.1'
     implementation 'androidx.webkit:webkit:1.11.0'
-    implementation 'com.google.firebase:firebase-messaging:24.0.1'
-}
-
-def tashGoogleServices = file("google-services.json")
-if (tashGoogleServices.exists()) {
-    apply plugin: 'com.google.gms.google-services'
 }
