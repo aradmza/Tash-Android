@@ -78,8 +78,13 @@ public class MainActivity extends AppCompatActivity {
                 progressBar.setVisibility(View.GONE);
                 view.evaluateJavascript(
                         "document.querySelectorAll('a[target]').forEach(function(a){a.removeAttribute('target');});"
+                                + "if(window.TashPushToken){window.dispatchEvent(new CustomEvent('tash-push-token',{detail:{token:window.TashPushToken}}));}"
                                 + "window.open=function(u){if(u)location.href=u;return null;};",
                         null);
+                String saved = getSharedPreferences("tash", MODE_PRIVATE).getString("push_token", "");
+                if (saved != null && !saved.isEmpty()) {
+                    view.evaluateJavascript("window.TashPushToken='" + saved.replace("'", "") + "';window.dispatchEvent(new CustomEvent('tash-push-token',{detail:{token:window.TashPushToken}}));", null);
+                }
                 CookieManager.getInstance().flush();
             }
 
