@@ -1,0 +1,68 @@
+name: Build Tash Android App
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      TASH_KEYSTORE_BASE64: ${{ secrets.TASH_KEYSTORE_BASE64 }}
+      TASH_KEYSTORE_PASSWORD: ${{ secrets.TASH_KEYSTORE_PASSWORD }}
+      TASH_KEY_ALIAS: ${{ secrets.TASH_KEY_ALIAS }}
+      TASH_KEY_PASSWORD: ${{ secrets.TASH_KEY_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Decode signing keystore
+        run: |
+          test -n "$TASH_KEYSTORE_BASE64"
+          echo "$TASH_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/tash.keystore"
+          echo "TASH_KEYSTORE_PATH=$RUNNER_TEMP/tash.keystore" >> "$GITHUB_ENV"
+
+      - name: Print SHA256 fingerprint
+        run: |
+          keytool -list -v \
+            -storetype PKCS12 \
+            -keystore "$TASH_KEYSTORE_PATH" \
+            -alias "$TASH_KEY_ALIAS" \
+            -storepass "$TASH_KEYSTORE_PASSWORD" | grep "SHA256:"
+
+      - name: Build release APK
+        run: gradle :app:assembleRelease --no-daemon
+
+      - name: Build release AAB
+        run: gradle :app:bundleRelease --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: tash-release-apk
+          path: app/build/outputs/apk/release/*.apk
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: tash-release-aab
+          path: app/build/outputs/bundle/release/*.aab
