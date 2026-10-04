@@ -23,8 +23,6 @@ import android.webkit.WebViewClient;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
-import android.webkit.JavascriptInterface;
-
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -64,7 +62,6 @@ public class MainActivity extends AppCompatActivity {
         settings.setJavaScriptCanOpenWindowsAutomatically(true);
         settings.setSupportMultipleWindows(true);
 
-        webView.addJavascriptInterface(new TashBridge(), "TashAndroid");
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
@@ -79,7 +76,6 @@ public class MainActivity extends AppCompatActivity {
                                 + "window.open=function(u){if(u)location.href=u;return null;};",
                         null);
                 CookieManager.getInstance().flush();
-                startWatch();
             }
 
             @Override
@@ -129,8 +125,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        askNotificationPermission();
-        TashWatchService.ensureChannels(this);
         if (hasMicPermission()) webView.loadUrl(SITE_URL);
         else ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, REQ_MIC_ON_START);
     }
@@ -211,36 +205,6 @@ public class MainActivity extends AppCompatActivity {
     public void onBackPressed() {
         if (webView != null && webView.canGoBack()) webView.goBack();
         else super.onBackPressed();
-    }
-
-    private void askNotificationPermission() {
-        if (android.os.Build.VERSION.SDK_INT >= 33 && androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            androidx.core.app.ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 2003);
-        }
-    }
-
-    @Override
-    protected void onNewIntent(android.content.Intent intent) {
-        super.onNewIntent(intent);
-        String url = intent == null ? null : intent.getStringExtra("open_url");
-        if (url != null && webView != null && (url.startsWith("https://tashweb.ir") || url.startsWith("https://www.tashweb.ir"))) {
-            webView.loadUrl(url);
-        }
-    }
-
-    private void startWatch() {
-        try {
-            android.content.Intent intent = new android.content.Intent(this, TashWatchService.class);
-            if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(intent);
-            else startService(intent);
-        } catch (Exception ignored) {}
-    }
-
-    private class TashBridge {
-        @JavascriptInterface
-        public void watch() {
-            runOnUiThread(MainActivity.this::startWatch);
-        }
     }
 
     @Override
