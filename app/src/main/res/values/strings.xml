@@ -2,4 +2,8 @@
 <resources>
     <string name="app_name">Tash</string>
     <string name="mic_denied">بدون دسترسی میکروفون، صدا در برنامه کار نمی‌کند.</string>
+    <string name="download_started">دانلود شروع شد — فایل در پوشه Downloads ذخیره می‌شود</string>
+    <string name="download_failed">دانلود ناموفق بود</string>
+    <string name="download_permission_denied">بدون دسترسی ذخیره، فایل دانلود نمی‌شود</string>
+    <string name="download_desc">دانلود از تش</string>
 </resources>
