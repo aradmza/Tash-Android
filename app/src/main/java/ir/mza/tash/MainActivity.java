@@ -3,17 +3,23 @@ package ir.mza.tash;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.DownloadManager;
 import android.content.ActivityNotFoundException;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.net.http.SslError;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Message;
 import android.view.View;
 import android.webkit.CookieManager;
+import android.webkit.DownloadListener;
 import android.webkit.PermissionRequest;
 import android.webkit.SslErrorHandler;
+import android.webkit.URLUtil;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -34,13 +40,18 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQ_FILE_CHOOSER = 1001;
     private static final int REQ_WEB_PERMISSIONS = 2001;
     private static final int REQ_MIC_ON_START = 2002;
+    private static final int REQ_STORAGE = 2003;
 
     private WebView webView;
     private ProgressBar progressBar;
     private ValueCallback<Uri[]> filePathCallback;
     private PermissionRequest pendingWebPermissionRequest;
+    private String pendingDownloadUrl;
+    private String pendingDownloadName;
+    private String pendingDownloadMime;
+    private String pendingDownloadDisposition;
 
-    @SuppressLint("SetJavaScriptEnabled")
+    @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -61,6 +72,18 @@ public class MainActivity extends AppCompatActivity {
         settings.setUseWideViewPort(true);
         settings.setJavaScriptCanOpenWindowsAutomatically(true);
         settings.setSupportMultipleWindows(true);
+        settings.setAllowFileAccess(true);
+        settings.setAllowContentAccess(true);
+
+        webView.addJavascriptInterface(new TashDownloadBridge(), "TashAndroid");
+
+        webView.setDownloadListener(new DownloadListener() {
+            @Override
+            public void onDownloadStart(String url, String userAgent, String contentDisposition,
+                                         String mimeType, long contentLength) {
+                enqueueDownload(url, contentDisposition, mimeType);
+            }
+        });
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
@@ -73,7 +96,8 @@ public class MainActivity extends AppCompatActivity {
                 progressBar.setVisibility(View.GONE);
                 view.evaluateJavascript(
                         "document.querySelectorAll('a[target]').forEach(function(a){a.removeAttribute('target');});"
-                                + "window.open=function(u){if(u)location.href=u;return null;};",
+                                + "window.open=function(u){if(u)location.href=u;return null;};"
+                                + "window.TashAndroid && (window.tashDownload = function(url, name){ try { TashAndroid.download(url, name || ''); } catch(e){} });",
                         null);
                 CookieManager.getInstance().flush();
             }
@@ -129,10 +153,64 @@ public class MainActivity extends AppCompatActivity {
         else ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, REQ_MIC_ON_START);
     }
 
+    private void enqueueDownload(String url, String contentDisposition, String mimeType) {
+        if (url == null || url.isEmpty()) return;
+        if (url.startsWith("blob:") || url.startsWith("data:")) {
+            Toast.makeText(this, R.string.download_failed, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String fileName = URLUtil.guessFileName(url, contentDisposition, mimeType);
+        if (fileName == null || fileName.isEmpty()) fileName = "tash_file";
+
+        if (needsStoragePermission()) {
+            pendingDownloadUrl = url;
+            pendingDownloadName = fileName;
+            pendingDownloadMime = mimeType;
+            pendingDownloadDisposition = contentDisposition;
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                    REQ_STORAGE);
+            return;
+        }
+
+        try {
+            DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+            request.setMimeType(mimeType);
+            String cookies = CookieManager.getInstance().getCookie(url);
+            if (cookies != null) request.addRequestHeader("Cookie", cookies);
+            request.addRequestHeader("User-Agent", webView.getSettings().getUserAgentString());
+            request.setDescription(getString(R.string.download_desc));
+            request.setTitle(fileName);
+            request.allowScanningByMediaScanner();
+            request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+            request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
+
+            DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+            if (dm != null) {
+                dm.enqueue(request);
+                Toast.makeText(this, R.string.download_started, Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            Toast.makeText(this, R.string.download_failed, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private boolean needsStoragePermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) return false;
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED;
+    }
+
     private boolean handleUrl(WebView view, Uri uri) {
         if (uri == null) return false;
         String scheme = uri.getScheme();
         if ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme)) {
+            String path = uri.getPath() != null ? uri.getPath().toLowerCase() : "";
+            if (path.matches(".*\\.(jpg|jpeg|png|gif|webp|mp4|webm|mp3|wav|ogg|pdf|zip|rar|doc|docx|xls|xlsx|txt|apk)$")) {
+                enqueueDownload(uri.toString(), null, null);
+                return true;
+            }
             if (view != null) view.loadUrl(uri.toString());
             return true;
         }
@@ -179,6 +257,15 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, R.string.mic_denied, Toast.LENGTH_LONG).show();
             }
             pendingWebPermissionRequest = null;
+            return;
+        }
+        if (requestCode == REQ_STORAGE) {
+            if (granted && pendingDownloadUrl != null) {
+                enqueueDownload(pendingDownloadUrl, pendingDownloadDisposition, pendingDownloadMime);
+            } else if (!granted) {
+                Toast.makeText(this, R.string.download_permission_denied, Toast.LENGTH_LONG).show();
+            }
+            pendingDownloadUrl = null;
         }
     }
 
@@ -211,5 +298,18 @@ public class MainActivity extends AppCompatActivity {
     protected void onPause() {
         CookieManager.getInstance().flush();
         super.onPause();
+    }
+
+    private class TashDownloadBridge {
+        @android.webkit.JavascriptInterface
+        public void download(String url, String suggestedName) {
+            runOnUiThread(() -> {
+                String disposition = null;
+                if (suggestedName != null && !suggestedName.isEmpty()) {
+                    disposition = "attachment; filename=\"" + suggestedName + "\"";
+                }
+                enqueueDownload(url, disposition, null);
+            });
+        }
     }
 }
