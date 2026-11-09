@@ -6,4 +6,11 @@
     <string name="download_failed">دانلود ناموفق بود</string>
     <string name="download_permission_denied">بدون دسترسی ذخیره، فایل دانلود نمی‌شود</string>
     <string name="download_desc">دانلود از تش</string>
+    <string name="offline_title">اتصال به اینترنت نیست</string>
+    <string name="offline_msg">لطفاً اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.</string>
+    <string name="offline_retry">تلاش دوباره</string>
+    <string name="offline_close">بستن</string>
+    <string name="offline_still">هنوز اینترنت وصل نیست</string>
+    <string name="allow_install">برای نصب APK، اجازه نصب از منابع ناشناخته را فعال کنید</string>
+    <string name="no_app_to_open">برنامه‌ای برای باز کردن این فایل پیدا نشد</string>
 </resources>
