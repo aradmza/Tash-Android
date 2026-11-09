@@ -23,6 +23,9 @@ import android.os.Environment;
 import android.os.Message;
 import android.provider.Settings;
 import android.view.View;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
+import android.view.WindowManager;
 import android.webkit.CookieManager;
 import android.webkit.DownloadListener;
 import android.webkit.PermissionRequest;
@@ -73,6 +76,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        hideSystemUi();
         setContentView(R.layout.activity_main);
         webView = findViewById(R.id.webview);
         progressBar = findViewById(R.id.progress);
@@ -189,6 +193,30 @@ public class MainActivity extends AppCompatActivity {
         }
         if (hasMicPermission()) webView.loadUrl(SITE_URL);
         else ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, REQ_MIC_ON_START);
+    }
+
+
+    private void hideSystemUi() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            getWindow().setDecorFitsSystemWindows(false);
+            WindowInsetsController c = getWindow().getInsetsController();
+            if (c != null) {
+                c.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
+                c.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+            }
+        } else {
+            getWindow().setFlags(
+                    WindowManager.LayoutParams.FLAG_FULLSCREEN,
+                    WindowManager.LayoutParams.FLAG_FULLSCREEN);
+            View decor = getWindow().getDecorView();
+            decor.setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                            | View.SYSTEM_UI_FLAG_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+        }
     }
 
     private boolean isOnline() {
@@ -459,6 +487,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        hideSystemUi();
         if (isOnline() && offlineOverlay != null && offlineOverlay.getVisibility() == View.VISIBLE) {
             hideOffline();
             if (webView.getUrl() == null || webView.getUrl().isEmpty()) webView.loadUrl(SITE_URL);
@@ -493,3 +522,4 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 }
+
