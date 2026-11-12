@@ -66,10 +66,7 @@ public class BillingBridge {
                 purchaseCallback.purchaseSucceed(entity -> {
                     activity.runOnUiThread(() -> {
                         Toast.makeText(activity, "خرید موفق: " + sku, Toast.LENGTH_LONG).show();
-                        // TODO: notify web or backend to activate subscription
-                        activity.webView.evaluateJavascript(
-                            "window.onTashPurchaseSuccess && window.onTashPurchaseSuccess('" + sku + "','" + entity.getPurchaseToken() + "')",
-                            null);
+                        // Web can listen for success via injected JS if needed
                     });
                     return Unit.INSTANCE;
                 });
