@@ -10,8 +10,22 @@ android {
         applicationId "ir.mza.tash"
         minSdk 21
         targetSdk 34
-        versionCode 20
-        versionName "1.4.3"
+        versionCode 21
+        versionName "1.4.4"
+    }
+
+    flavorDimensions "market"
+    productFlavors {
+        myket {
+            dimension "market"
+            buildConfigField "String", "MARKET", "\"myket\""
+            // applicationIdSuffix ".myket" // uncomment if you need separate package
+        }
+        bazaar {
+            dimension "market"
+            buildConfigField "String", "MARKET", "\"bazaar\""
+            // applicationIdSuffix ".bazaar"
+        }
     }
 
     signingConfigs {
@@ -42,6 +56,10 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+
+    buildFeatures {
+        buildConfig true
+    }
 }
 
 dependencies {
@@ -50,5 +68,7 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'androidx.core:core:1.13.1'
     implementation 'androidx.webkit:webkit:1.11.0'
-}
 
+    // Cafe Bazaar Poolakey (In-App Billing)
+    implementation 'com.github.cafebazaar.Poolakey:poolakey:2.2.0'
+}
