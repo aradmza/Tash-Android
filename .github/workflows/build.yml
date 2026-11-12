@@ -49,20 +49,20 @@ jobs:
             -alias "$TASH_KEY_ALIAS" \
             -storepass "$TASH_KEYSTORE_PASSWORD" | grep "SHA256:"
 
-      - name: Build release APK
-        run: gradle :app:assembleRelease --no-daemon
+      - name: Build Myket release APK
+        run: gradle :app:assembleMyketRelease --no-daemon
 
-      - name: Build release AAB
-        run: gradle :app:bundleRelease --no-daemon
+      - name: Build Bazaar release APK
+        run: gradle :app:assembleBazaarRelease --no-daemon
 
-      - name: Upload APK
+      - name: Upload Myket APK
         uses: actions/upload-artifact@v4
         with:
-          name: tash-release-apk
-          path: app/build/outputs/apk/release/*.apk
+          name: tash-myket-apk
+          path: app/build/outputs/apk/myket/release/*.apk
 
-      - name: Upload AAB
+      - name: Upload Bazaar APK
         uses: actions/upload-artifact@v4
         with:
-          name: tash-release-aab
-          path: app/build/outputs/bundle/release/*.aab
+          name: tash-bazaar-apk
+          path: app/build/outputs/apk/bazaar/release/*.apk
